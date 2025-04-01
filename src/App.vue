@@ -105,7 +105,7 @@ export default {
     },
     async envioSecuencia(){
       this.permitirIngresarSecuencia = false;
-      const response = await axios.post('https://pear-pig-kit.cyclic.app/enviarSecuencia', {
+      const response = await axios.post('https://memoriapokemonback.onrender.com/enviarSecuencia', {
         idJuego: this.idJuego,
         pokemons: this.secuenciaActual
       });
@@ -124,7 +124,7 @@ export default {
       }
     },
     async obtenerEquipoInicial (){
-      const response = await axios.get('https://pear-pig-kit.cyclic.app/crearJuego');
+      const response = await axios.get('https://memoriapokemonback.onrender.com/crearJuego');
 
       this.equipoPokemon = response.data.equipoInicial;
       this.idJuego = response.data.idJuego;
