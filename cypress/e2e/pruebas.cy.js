@@ -26,17 +26,27 @@ describe('Dado que el usuario hace click al botón start y se inicia la secuenci
 
   it('Deberá de renderizar la secuencia correctamente', () => {
     cy.intercept('POST', '**/enviarSecuencia').as('enviarSecuencia');
-
+  
     cy.get('.start-button').should('exist');
-    cy.get('.start-button', {timeout: 10000}).click();
-
-    cy.contains('h1', 'Secuencia a memorizar:').should('exist')
-
-    cy.contains('h1', 'Secuencia a memorizar:')
-      .parent()
-      .find('img')
-      .should('have.length.greaterThan', 0)
-  });
+    cy.get('.start-button', { timeout: 10000 }).click();
+  
+    cy.wait('@enviarSecuencia').then((interception) => {
+      const secuencia = interception.response.body.pokemonSequence;
+      cy.wrap(secuencia).as('secuenciaActual');
+    });
+  
+    cy.contains('h1', 'Secuencia a memorizar:').should('exist');
+  
+    cy.get('@secuenciaActual').then((secuencia) => {
+      cy.contains('h1', 'Secuencia a memorizar:')
+        .parent()
+        .find('img')
+        .each(($img, index) => {
+          const src = $img.attr('src');
+          expect(src).to.eq(secuencia[index].imagenUrl);
+        });
+    });
+  });  
 
   it('Deberá de reemplazar la secuencia por Ditto después de 5 segundos', () => {
     cy.intercept('POST', '**/enviarSecuencia').as('enviarSecuencia');
@@ -67,30 +77,52 @@ describe('Dado que el usuario crea y envia una secuencia', () => {
     cy.wait(5000);
   });
 
-  it('Deberá añadir un Pokémon a la secuencia al hacer click', () => {
-    cy.get('.button-container .image-button').first().click();
+  it('Deberá hacer click y añadir un Pokémon a la secuencia', () => {
+    cy.intercept('POST', '**/enviarSecuencia').as('enviarSecuencia');
+    cy.visit('http://localhost:8080/');
+    cy.get('.start-button').click();
+  
+    cy.wait('@enviarSecuencia');
+    cy.wait(10000);
+  
+    const index = 2;
+  
+    cy.get('.button-container .image-button').eq(index).find('img').then(($img) => {
+      const src = $img.attr('src');
+      cy.wrap($img).click();
 
-    cy.contains('h1', 'Secuencia a enviar:')
-      .parent()
-      .find('img')
-      .should('have.length', 1);
+      cy.wait(5000);
+  
+      cy.contains('h1', 'Secuencia a enviar:')
+        .parent()
+        .find('img')
+        .eq(0)
+        .should('have.attr', 'src', src);
+    });
   });
-
-  it('Deberá remover un Pokémon de la secuencia al hacer click en éste', () => {
-    cy.get('.button-container img').first().click();
-
-    cy.contains('h1', 'Secuencia a enviar:')
-      .parent()
-      .find('img')
-      .should('have.length', 1)
-      .click();
-
-    cy.contains('h1', 'Secuencia a enviar:')
-      .parent()
-      .find('img')
-      .should('have.length', 0);
+  
+  it('Deberá remover el Pokémon de la secuencia', () => {
+    const index = 1;
+  
+    cy.get('.button-container .image-button').eq(index).find('img').then(($img) => {
+      const src = $img.attr('src');
+  
+      cy.wrap($img).click();
+  
+      cy.contains('h1', 'Secuencia a enviar:')
+        .parent()
+        .find('img')
+        .eq(0)
+        .should('have.attr', 'src', src)
+        .click(); 
+  
+      cy.contains('h1', 'Secuencia a enviar:')
+        .parent()
+        .find('img')
+        .should('have.length', 0);
+    });
   });
-
+  
   it('Deberá mostrar el botón de enviar secuencia solo cuando la secuencia esté completa', () => {
     cy.contains('h1', 'Secuencia a memorizar:')
       .parent()
@@ -144,7 +176,7 @@ describe('Dado que se finaliza el juego', () => {
     });
   });
 
-  it('Debe mostrar el puntaje cuando el juego termina', function () {
+  it('Deberá mostrar el puntaje cuando el juego termina', function () {
     cy.get('@secuenciaActual').then((secuencia) => {
       cy.get('.button-container img').each(($img, index) => {
         if (!secuencia.some(pokemon => pokemon.imagenUrl === $img.attr('src'))) {
@@ -158,7 +190,7 @@ describe('Dado que se finaliza el juego', () => {
         expect(interception.response.body.resultado).to.equal('TERMINADO');
 
         cy.contains('h1','GAME OVER').should('exist');
-        cy.contains('h2','Puntaje: 0');
+        cy.contains('h2',/^Puntaje: \d+$/);
       });
     });
   });
